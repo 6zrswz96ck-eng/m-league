@@ -1,22 +1,9 @@
 @extends('layout')
-@section('title', '選手編集 | Mリーグ選手成績')
+@section('title', '公式成績の手動修正 | Mリーグ選手成績')
 @section('content')
 <p class="eyebrow">ADMIN / PLAYERS</p>
-<h1 class="page-title">選手の登録・編集</h1>
-<p class="page-intro">登録内容を間違えた場合は下の選手を開いて修正できます。ポイントと着順回数は、次の自動更新が成功すると公式の値に戻ります。</p>
-<section class="card">
-    <h2>新しい選手を登録</h2>
-    <form method="post" action="{{ route('players.store') }}">
-        @csrf
-        <div class="formrow">
-            <label>名前 <input name="name" value="{{ old('name') }}" required maxlength="80"></label>
-            <label>チーム <input name="team_name" value="{{ old('team_name') }}" required maxlength="80"></label>
-            <label>ポイント <input name="season_point" type="number" step="0.1" value="{{ old('season_point', '0') }}" required></label>
-            <button type="submit">登録</button>
-        </div>
-    </form>
-</section>
-<h2>登録済み選手</h2>
+<h1 class="page-title">公式成績の手動修正</h1>
+<p class="page-intro">公式データの取得に失敗した場合に使います。手動修正した値は次の自動更新が成功すると公式の値に戻ります。チームの4人を入れ替える場合は<a href="{{ route('groups.index') }}">チーム作成・編集</a>を開いてください。</p>
 @foreach($players as $player)
 <section class="card" id="player-{{ $player->id }}">
     <details @if($errors->any() && old('_editing_player') == $player->id) open @endif>

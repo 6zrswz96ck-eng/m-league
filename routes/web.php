@@ -16,9 +16,9 @@ Route::post('/logout', [AdminLoginController::class, 'logout'])->name('logout');
 Route::middleware(AdminAccess::class)->group(function () {
 Route::get('/admin/groups', [GroupController::class, 'index'])->name('groups.index');
 Route::post('/admin/groups', [GroupController::class, 'store'])->name('groups.store');
+Route::get('/admin/groups/{group}/edit', [GroupController::class, 'edit'])->name('groups.edit');
 Route::put('/admin/groups/{group}', [GroupController::class, 'update'])->name('groups.update');
 Route::delete('/admin/groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy');
 Route::get('/admin/players', [PlayerController::class, 'manage'])->name('players.manage');
-Route::post('/admin/players', [PlayerController::class, 'store'])->name('players.store');
 Route::put('/admin/players/{player}', [PlayerController::class, 'update'])->name('players.update');
 });

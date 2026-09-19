@@ -13,11 +13,19 @@ class LeagueTest extends TestCase {
         $players = collect(range(1, 5))->map(fn ($i) => Player::create(['name' => "選手{$i}", 'team_name' => 'チーム', 'season_point' => $i * 10]));
         $this->post('/login', ['username' => 'admin', 'password' => 'test-secret'])->assertRedirect();
         $this->post('/admin/groups', ['name' => 'A', 'players' => [$players[0]->id,$players[1]->id,$players[2]->id]])->assertSessionHasErrors('players');
+        $this->post('/admin/groups', ['name' => 'A', 'players' => $players->pluck('id')->all()])->assertSessionHasErrors('players');
         $this->post('/admin/groups', ['name' => 'A', 'players' => $players->take(4)->pluck('id')->all()])->assertSessionHasNoErrors();
         $this->assertSame(4, Group::first()->players()->count());
-        $this->get('/')->assertOk()->assertSee('+100.0 pt');
+        $group = Group::first();
+        $this->get(route('groups.edit', $group))->assertOk()->assertSee('4人を編集')->assertSee('data-group-form', false);
+        $this->put(route('groups.update', $group), ['name' => 'A', 'players' => [$players[0]->id,$players[1]->id,$players[4]->id]])->assertSessionHasErrors('players');
+        $this->assertTrue($group->fresh()->players->contains($players[3]->id));
+        $this->put(route('groups.update', $group), ['name' => 'A', 'players' => [$players[0]->id,$players[1]->id,$players[2]->id,$players[4]->id]])->assertSessionHasNoErrors();
+        $this->assertTrue($group->fresh()->players->contains($players[4]->id));
+        $this->assertFalse($group->fresh()->players->contains($players[3]->id));
+        $this->get('/')->assertOk()->assertSee('+110.0 pt')->assertSee(route('groups.edit', $group));
         $players[0]->update(['season_point' => -10]);
-        $this->get('/')->assertSee('+80.0 pt');
+        $this->get('/')->assertSee('+90.0 pt');
     }
     public function test_admin_login_and_logout(): void {
         $this->app['config']->set('league.admin_password', 'test-secret');
@@ -60,7 +68,7 @@ class LeagueTest extends TestCase {
             'place_1_count' => 2, 'place_2_count' => 1, 'place_3_count' => 0, 'place_4_count' => 3,
         ])->assertSessionHasNoErrors();
         $this->get(route('players.show', $player))->assertOk()->assertSee('修正した選手')->assertSee('2回')->assertSee('3回');
-        $this->get(route('players.manage'))->assertSee('修正した選手')->assertSee('選手の登録・編集');
+        $this->get(route('players.manage'))->assertSee('修正した選手')->assertSee('公式成績の手動修正');
     }
     public function test_stats_parser_reads_each_placement_count(): void {
         $tables = '';

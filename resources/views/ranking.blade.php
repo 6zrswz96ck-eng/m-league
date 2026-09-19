@@ -40,6 +40,7 @@
             </div>
         @endforeach
         </div>
+        @if(session('league_admin_authenticated'))<div class="rank-actions"><a href="{{ route('groups.edit', $group) }}">このチームの4人を編集</a></div>@endif
     </section>
 @empty
     <p class="card">まだグループがありません。@if(session('league_admin_authenticated'))<a href="{{ route('groups.index') }}">グループを作成</a>してください。@else 管理者が登録するとここにランキングが表示されます。@endif</p>

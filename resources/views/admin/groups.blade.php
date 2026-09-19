@@ -1,5 +1,25 @@
 @extends('layout')
-@section('content')<h1>グループ管理</h1><section class="card"><h2>新しいグループ</h2><form method="post" action="{{ route('groups.store') }}">@csrf<label>グループ名 <input name="name" value="{{ old('name') }}" required maxlength="80"></label><p>選手を4人選択</p><div class="grid">@foreach($players as $player)<label><input type="checkbox" name="players[]" value="{{ $player->id }}" @checked(in_array($player->id,old('players',[])))> {{ $player->name }} <small>({{ $player->team_name }})</small></label>@endforeach</div><p><button>作成</button></p></form></section>
-@foreach($groups as $group)<section class="card"><details><summary>{{ $group->name }}　<span class="muted">{{ $group->players->pluck('name')->join(' / ') }}</span></summary><form method="post" action="{{ route('groups.update',$group) }}">@csrf @method('PUT')<label>グループ名 <input name="name" value="{{ $group->name }}" required maxlength="80"></label><p>選手を4人選択</p><div class="grid">@foreach($players as $player)<label><input type="checkbox" name="players[]" value="{{ $player->id }}" @checked($group->players->contains($player->id))> {{ $player->name }} <small>({{ $player->team_name }})</small></label>@endforeach</div><p><button>保存</button></p></form><form method="post" action="{{ route('groups.destroy',$group) }}" onsubmit="return confirm('このグループを削除しますか？')">@csrf @method('DELETE')<button class="danger">削除</button></form></details></section>@endforeach
-<p class="source-note">公式データを取得できない場合のために、<a href="{{ route('players.manage') }}">選手データを手動修正</a>できます。</p>
+@section('title', 'チーム作成・編集 | Mリーグ選手成績')
+@section('content')
+<p class="eyebrow">ADMIN / TEAMS</p>
+<h1 class="page-title">チーム作成・編集</h1>
+<p class="page-intro">各チームは選手4人で構成します。選び間違えた場合は登録済みチームの「4人を編集」から入れ替えられます。</p>
+<section class="card">
+    <h2>新しいチームを作成</h2>
+    <form method="post" action="{{ route('groups.store') }}" class="group-form" data-group-form>
+        @csrf
+        <label>チーム名 <input name="name" value="{{ old('name') }}" required maxlength="80"></label>
+        @include('admin.partials.group-player-fields', ['selectedIds' => old('players', [])])
+        <p><button type="submit" data-submit>4人で作成</button></p>
+    </form>
+</section>
+<h2>登録済みチーム</h2>
+@forelse($groups as $group)
+    <section class="card group-summary">
+        <div><h3>{{ $group->name }}</h3><p>{{ $group->players->pluck('name')->join(' / ') }}</p></div>
+        <div class="group-actions"><a class="button" href="{{ route('groups.edit', $group) }}">4人を編集</a><form method="post" action="{{ route('groups.destroy', $group) }}" onsubmit="return confirm('このチームを削除しますか？')">@csrf @method('DELETE')<button class="danger" type="submit">削除</button></form></div>
+    </section>
+@empty
+    <p class="muted">まだチームはありません。</p>
+@endforelse
 @endsection

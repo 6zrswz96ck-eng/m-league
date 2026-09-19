@@ -17,7 +17,6 @@
             @endforeach
         </div>
     @endif
-    @if(session('league_admin_authenticated'))<p><a href="{{ route('players.manage') }}#player-{{ $player->id }}">この選手を編集</a></p>@endif
 </section>
 <p class="source-note">成績出典: <a href="https://m-league.jp/stats/" target="_blank" rel="noopener noreferrer">M.LEAGUE 公式成績表</a></p>
 @endsection
