@@ -2,6 +2,7 @@
 namespace App\Services;
 
 use App\Models\Player;
+use App\Models\Group;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,17 @@ class MLeagueScoreService {
                         'place_3_count' => $row['placements'][3],
                         'place_4_count' => $row['placements'][4],
                     ]);
+                }
+                $groups = Group::with('players')->get()->sortByDesc(
+                    fn ($group) => $group->players->sum(fn ($player) => (int) round((float) $player->season_point * 10))
+                )->values();
+                $previousTotal = null;
+                $rank = 0;
+                foreach ($groups as $index => $group) {
+                    $total = $group->players->sum(fn ($player) => (int) round((float) $player->season_point * 10));
+                    $rank = $total === $previousTotal ? $rank : $index + 1;
+                    $group->update(['previous_rank' => $group->last_synced_rank, 'last_synced_rank' => $rank]);
+                    $previousTotal = $total;
                 }
                 DB::table('sync_states')->updateOrInsert(['id' => 1], ['last_success_at' => now(), 'updated_at' => now(), 'created_at' => now()]);
             });

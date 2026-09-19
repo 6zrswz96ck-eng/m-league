@@ -4,6 +4,7 @@ use App\Models\Group;
 use App\Models\Player;
 use App\Services\MLeagueScoreService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 class LeagueTest extends TestCase {
     use RefreshDatabase;
@@ -43,6 +44,7 @@ class LeagueTest extends TestCase {
         $response = $this->get('/')->assertOk()->assertSee('最下位');
         $this->assertSame(1, substr_count($response->getContent(), 'rank-card is-last'));
         $this->assertMatchesRegularExpression('/rank-card is-last.*?最下位グループ/s', $response->getContent());
+        $response->assertSee('最下位との差 80.0 pt')->assertSee('最下位との差 0.0 pt');
     }
     public function test_ranking_player_link_shows_placements_and_admin_can_correct_them(): void {
         $this->app['config']->set('league.admin_password', 'test-secret');
@@ -73,5 +75,34 @@ class LeagueTest extends TestCase {
         $rows = app(MLeagueScoreService::class)->parse('<h1 class="c-title">Stats 2026-27</h1>'.$tables);
         $this->assertCount(40, $rows);
         $this->assertSame([1 => 2, 2 => 1, 3 => 0, 4 => 3], $rows['選手1-1']['placements']);
+    }
+    public function test_successive_score_updates_record_group_rank_movement(): void {
+        foreach (range(1, 40) as $i) {
+            Player::create(['name' => "選手{$i}", 'team_name' => 'チーム', 'season_point' => 0]);
+        }
+        $first = Group::create(['name' => 'A']);
+        $first->players()->sync(Player::whereIn('name', ['選手1', '選手2', '選手3', '選手4'])->pluck('id'));
+        $second = Group::create(['name' => 'B']);
+        $second->players()->sync(Player::whereIn('name', ['選手5', '選手6', '選手7', '選手8'])->pluck('id'));
+        $html = function (string $firstScore, string $secondScore): string {
+            $body = '<h1 class="c-title">Stats 2026-27</h1>';
+            foreach (range(0, 9) as $team) {
+                $names = implode('', array_map(fn ($i) => '<th scope="col">選手'.$i.'</th>', range($team * 4 + 1, $team * 4 + 4)));
+                $points = implode('', array_map(fn ($i) => '<td>'.($i <= 4 ? $firstScore : ($i <= 8 ? $secondScore : '0')).'</td>', range($team * 4 + 1, $team * 4 + 4)));
+                $body .= '<h2 class="p-stats__teamName">チーム</h2><table class="p-stats__table"><tr>'.$names.'</tr><tr><th>ポイント</th>'.$points.'</tr>';
+                foreach (range(1, 4) as $place) $body .= '<tr><th>'.$place.'位</th>'.str_repeat('<td>0</td>', 4).'</tr>';
+                $body .= '</table>';
+            }
+            return $body;
+        };
+        Http::fakeSequence()->push($html('10', '0'))->push($html('0', '10'));
+        $service = app(MLeagueScoreService::class);
+        $service->update();
+        $this->assertNull($first->fresh()->previous_rank);
+        $this->assertSame(1, $first->fresh()->last_synced_rank);
+        $service->update();
+        $this->assertSame(1, $first->fresh()->previous_rank);
+        $this->assertSame(2, $first->fresh()->last_synced_rank);
+        $this->get('/')->assertOk()->assertSee('↓1')->assertSee('↑1')->assertSee('最下位との差 40.0 pt');
     }
 }

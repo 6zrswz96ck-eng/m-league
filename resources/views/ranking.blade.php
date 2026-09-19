@@ -24,10 +24,13 @@
     @php($isLast = $highestTotal !== $lowestTotal && $totalTenths === $lowestTotal)
     @php($rank = $previousTotal === $total ? $rank : $loop->iteration)
     @php($previousTotal = $total)
+    @php($rankChange = $group->previous_rank === null ? null : $group->previous_rank - $rank)
     <section @class(['card', 'rank-card', 'is-last' => $isLast])>
         <div class="rank-header">
-            <div class="rank-title"><span class="rank-number">{{ $rank }}位</span><h2>{{ $group->name }}</h2>@if($isLast)<span class="last-label">最下位</span>@endif</div>
-            <strong class="point {{ $total > 0 ? 'plus' : ($total < 0 ? 'minus' : '') }}">{{ $total > 0 ? '+' : '' }}{{ number_format($total, 1) }} pt</strong>
+            <div class="rank-title"><span class="rank-number">{{ $rank }}位</span><h2>{{ $group->name }}</h2>@if($isLast)<span class="last-label">最下位</span>@endif
+                @if($rankChange !== null)<span @class(['rank-change', 'rank-up' => $rankChange > 0, 'rank-down' => $rankChange < 0]) aria-label="前回更新から{{ abs($rankChange) }}位{{ $rankChange > 0 ? '上昇' : ($rankChange < 0 ? '下降' : '変動なし') }}">{{ $rankChange > 0 ? '↑'.$rankChange : ($rankChange < 0 ? '↓'.abs($rankChange) : '→ 変動なし') }}</span>@endif
+            </div>
+            <div class="rank-score"><strong class="point {{ $total > 0 ? 'plus' : ($total < 0 ? 'minus' : '') }}">{{ $total > 0 ? '+' : '' }}{{ number_format($total, 1) }} pt</strong><span class="rank-gap">最下位との差 {{ number_format(($totalTenths - $lowestTotal) / 10, 1) }} pt</span></div>
         </div>
         <div class="rank-players">
         @foreach($group->players as $player)
