@@ -15,7 +15,8 @@
             <span class="brand-name"><strong>M.LEAGUE</strong><small>PLAYER SCORES</small></span>
         </a>
         <nav class="site-nav" aria-label="メインナビゲーション">
-            <a href="{{ route('ranking') }}" @class(['active' => request()->routeIs('ranking')])>ランキング</a>
+            <a href="{{ route('ranking') }}" @class(['active' => request()->routeIs('ranking')])>グループランキング</a>
+            <a href="{{ route('players.ranking') }}" @class(['active' => request()->routeIs('players.ranking')])>選手ポイントランキング</a>
             <a href="{{ route('players.index') }}" @class(['active' => request()->routeIs('players.index')])>選手紹介</a>
             @if(session('league_admin_authenticated'))
                 <a href="{{ route('groups.index') }}" @class(['active' => request()->routeIs('groups.*')])>チーム作成・編集</a>

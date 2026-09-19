@@ -8,6 +8,7 @@ use App\Http\Middleware\AdminAccess;
 use Illuminate\Support\Facades\Route;
 Route::get('/', [RankingController::class, 'index'])->name('ranking');
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
+Route::get('/players/ranking', [PlayerController::class, 'ranking'])->name('players.ranking');
 Route::get('/players/{player}', [PlayerController::class, 'show'])->name('players.show');
 Route::post('/update', [RankingController::class, 'update'])->middleware('throttle:3,1')->name('update');
 Route::get('/login', [AdminLoginController::class, 'show'])->name('login');

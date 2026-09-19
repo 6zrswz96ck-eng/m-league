@@ -43,6 +43,16 @@ class LeagueTest extends TestCase {
         $this->get('/players')->assertOk()->assertSee('選手紹介')->assertSee('石井 一馬')->assertSee('55.6 pt')->assertSee('#176b4a')->assertSee('https://m-league.jp/teams/jets/');
         $this->get('/admin/players')->assertRedirect('/login');
     }
+    public function test_individual_point_ranking_orders_players_and_shares_tied_places(): void {
+        $second = Player::create(['name' => '二位', 'team_name' => 'EARTH JETS', 'season_point' => 10]);
+        $first = Player::create(['name' => '一位', 'team_name' => 'EARTH JETS', 'season_point' => 20]);
+        Player::create(['name' => '同点', 'team_name' => 'EARTH JETS', 'season_point' => 10]);
+        $response = $this->get(route('players.ranking'))->assertOk()->assertSee('選手ポイントランキング')->assertSee('+20.0 pt')->assertSee('#176b4a')->assertSee(route('players.show', $first));
+        $html = $response->getContent();
+        $this->assertLessThan(strpos($html, '二位'), strpos($html, '一位'));
+        $this->assertSame(2, substr_count($html, '2位</span>'));
+        $this->assertStringContainsString(route('players.show', $second), $html);
+    }
     public function test_only_lowest_scoring_group_gets_last_place_style(): void {
         $players = collect(range(1, 8))->map(fn ($i) => Player::create(['name' => "Player {$i}", 'team_name' => 'Test', 'season_point' => $i <= 4 ? 10 : -10]));
         $leader = Group::create(['name' => '上位']);
