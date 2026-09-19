@@ -1,7 +1,7 @@
 FROM php:8.4-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libcurl4-openssl-dev libonig-dev libxml2-dev libzip-dev unzip \
+    libcurl4-openssl-dev libonig-dev libsqlite3-dev libxml2-dev libzip-dev unzip \
     && docker-php-ext-install curl dom mbstring pdo_sqlite zip \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
