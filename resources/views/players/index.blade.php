@@ -21,7 +21,7 @@
             @foreach($players as $player)
                 <article class="profile-card">
                     <span class="ordinal">PLAYER {{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</span>
-                    <h3>{{ $player->name }}</h3>
+                    <h3><a class="player-link" href="{{ route('players.show', $player) }}">{{ $player->name }}</a></h3>
                     <x-team-badge :team="$player->team_name" />
                     <div class="profile-score"><small>今季個人スコア</small><strong class="{{ $player->season_point > 0 ? 'plus' : ($player->season_point < 0 ? 'minus' : '') }}">{{ $player->season_point > 0 ? '+' : '' }}{{ number_format((float) $player->season_point, 1) }} pt</strong></div>
                 </article>

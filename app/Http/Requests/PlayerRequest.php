@@ -8,5 +8,9 @@ class PlayerRequest extends FormRequest {
         'name' => ['required','string','max:80',Rule::unique('players')->ignore($this->route('player'))],
         'team_name' => ['required','string','max:80'],
         'season_point' => ['required','numeric','between:-10000,10000','decimal:0,1'],
+        'place_1_count' => ['nullable','integer','min:0','max:1000'],
+        'place_2_count' => ['nullable','integer','min:0','max:1000'],
+        'place_3_count' => ['nullable','integer','min:0','max:1000'],
+        'place_4_count' => ['nullable','integer','min:0','max:1000'],
     ]; }
 }

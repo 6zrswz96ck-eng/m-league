@@ -2,6 +2,7 @@
 namespace Tests\Feature;
 use App\Models\Group;
 use App\Models\Player;
+use App\Services\MLeagueScoreService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 class LeagueTest extends TestCase {
@@ -42,5 +43,35 @@ class LeagueTest extends TestCase {
         $response = $this->get('/')->assertOk()->assertSee('最下位');
         $this->assertSame(1, substr_count($response->getContent(), 'rank-card is-last'));
         $this->assertMatchesRegularExpression('/rank-card is-last.*?最下位グループ/s', $response->getContent());
+    }
+    public function test_ranking_player_link_shows_placements_and_admin_can_correct_them(): void {
+        $this->app['config']->set('league.admin_password', 'test-secret');
+        $players = collect(range(1, 4))->map(fn ($i) => Player::create(['name' => "選手{$i}", 'team_name' => 'チーム', 'season_point' => 0]));
+        $group = Group::create(['name' => 'A']);
+        $group->players()->sync($players->pluck('id'));
+        $player = $players->first();
+        $this->get('/')->assertOk()->assertSee(route('players.show', $player));
+        $this->get(route('players.show', $player))->assertSee('次の成績更新後');
+        $this->post('/login', ['username' => 'admin', 'password' => 'test-secret'])->assertRedirect();
+        $this->put(route('players.update', $player), [
+            'name' => '修正した選手', 'team_name' => 'チーム', 'season_point' => '12.3',
+            'place_1_count' => 2, 'place_2_count' => 1, 'place_3_count' => 0, 'place_4_count' => 3,
+        ])->assertSessionHasNoErrors();
+        $this->get(route('players.show', $player))->assertOk()->assertSee('修正した選手')->assertSee('2回')->assertSee('3回');
+        $this->get(route('players.manage'))->assertSee('修正した選手')->assertSee('選手の登録・編集');
+    }
+    public function test_stats_parser_reads_each_placement_count(): void {
+        $tables = '';
+        foreach (range(1, 10) as $team) {
+            $names = implode('', array_map(fn ($i) => '<th scope="col">選手'.$team.'-'.$i.'</th>', range(1, 4)));
+            $tables .= '<h2 class="p-stats__teamName">チーム'.$team.'</h2><table class="p-stats__table"><tr>'.$names.'</tr>';
+            foreach (['ポイント' => '12.3', '1位' => '2', '2位' => '1', '3位' => '0', '4位' => '3'] as $label => $value) {
+                $tables .= '<tr><th>'.$label.'</th>'.str_repeat('<td>'.$value.'</td>', 4).'</tr>';
+            }
+            $tables .= '</table>';
+        }
+        $rows = app(MLeagueScoreService::class)->parse('<h1 class="c-title">Stats 2026-27</h1>'.$tables);
+        $this->assertCount(40, $rows);
+        $this->assertSame([1 => 2, 2 => 1, 3 => 0, 4 => 3], $rows['選手1-1']['placements']);
     }
 }

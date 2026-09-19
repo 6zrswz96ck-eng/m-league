@@ -19,6 +19,7 @@
             <a href="{{ route('players.index') }}" @class(['active' => request()->routeIs('players.index')])>選手紹介</a>
             @if(session('league_admin_authenticated'))
                 <a href="{{ route('groups.index') }}" @class(['active' => request()->routeIs('groups.index')])>グループ管理</a>
+                <a href="{{ route('players.manage') }}" @class(['active' => request()->routeIs('players.manage')])>選手編集</a>
                 <form method="post" action="{{ route('logout') }}">@csrf<button class="nav-button" type="submit">ログアウト</button></form>
             @else
                 <a href="{{ route('login') }}" @class(['active' => request()->routeIs('login')])>管理者ログイン</a>

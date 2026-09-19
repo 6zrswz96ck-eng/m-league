@@ -32,7 +32,7 @@
         <div class="rank-players">
         @foreach($group->players as $player)
             <div class="player">
-                <div><div class="player-name">{{ $player->name }}</div><x-team-badge :team="$player->team_name" /></div>
+                <div><a class="player-name player-link" href="{{ route('players.show', $player) }}">{{ $player->name }} <span aria-hidden="true">↗</span></a><x-team-badge :team="$player->team_name" /></div>
                 <strong class="point {{ $player->season_point > 0 ? 'plus' : ($player->season_point < 0 ? 'minus' : '') }}">{{ $player->season_point > 0 ? '+' : '' }}{{ number_format((float) $player->season_point, 1) }} pt</strong>
             </div>
         @endforeach
