@@ -13,7 +13,7 @@ services:
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: false
+        value: "false"
       - key: LOG_CHANNEL
         value: stderr
       - key: APP_KEY
@@ -29,7 +29,7 @@ services:
       - key: SESSION_DRIVER
         value: database
       - key: SESSION_SECURE_COOKIE
-        value: true
+        value: "true"
       - key: CACHE_STORE
         value: database
       - key: APP_LOCALE
