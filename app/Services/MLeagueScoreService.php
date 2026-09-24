@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Category;
+use App\Models\Group;
 use App\Models\Player;
 use DOMDocument;
 use DOMXPath;
@@ -35,6 +36,17 @@ class MLeagueScoreService
                         'place_3_count' => $row['placements'][3],
                         'place_4_count' => $row['placements'][4],
                     ]);
+                }
+                $groups = Group::with('players')->get()->sortByDesc(
+                    fn ($group) => $group->players->sum(fn ($player) => (int) round((float) $player->season_point * 10))
+                )->values();
+                $previousTotal = null;
+                $rank = 0;
+                foreach ($groups as $index => $group) {
+                    $total = $group->players->sum(fn ($player) => (int) round((float) $player->season_point * 10));
+                    $rank = $total === $previousTotal ? $rank : $index + 1;
+                    $group->update(['previous_rank' => $group->last_synced_rank, 'last_synced_rank' => $rank]);
+                    $previousTotal = $total;
                 }
                 foreach (Category::with('groups.players')->get() as $category) {
                     $groups = $category->groups->sortByDesc(

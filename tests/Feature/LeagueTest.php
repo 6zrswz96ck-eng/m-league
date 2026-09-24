@@ -166,13 +166,16 @@ class LeagueTest extends TestCase
 
             return $group;
         })->keyBy('name');
-        Category::where('name', '雀廃')->firstOrFail()->groups()->attach($groups->only(['益田', '三浦', '本田', '馬場'])->pluck('id'));
-        Category::where('name', '東福岡')->firstOrFail()->groups()->attach($groups->only(['益田', 'すぎちゃんず', '古川', '横山'])->pluck('id'));
+        (require database_path('migrations/2026_09_24_001345_repair_group_category_memberships.php'))->up();
 
-        $response = $this->get('/');
+        $allResponse = $this->get('/');
+        $eastFukuoka = Category::where('name', '東福岡')->firstOrFail();
+        $categoryResponse = $this->get(route('ranking', ['category' => $eastFukuoka->id]));
 
-        $response->assertOk()->assertSeeInOrder(['雀廃', '馬場', '本田', '三浦', '益田', '東福岡', '横山', '古川', 'すぎちゃんず', '益田']);
-        $this->assertSame(2, substr_count($response->getContent(), '最下位との差 0.0 pt'));
-        $this->assertSame(2, substr_count($response->getContent(), '>益田<'));
+        $allResponse->assertOk()->assertSeeInOrder(['すべて', '雀廃', '東福岡'])->assertSeeInOrder(['横山', '古川', 'すぎちゃんず', '馬場', '本田', '三浦', '益田']);
+        $this->assertSame(1, substr_count($allResponse->getContent(), '>益田<'));
+        $categoryResponse->assertOk()->assertSeeInOrder(['東福岡', '横山', '古川', 'すぎちゃんず', '益田'])->assertDontSee('馬場</h3>', false);
+        $this->assertSame(1, substr_count($categoryResponse->getContent(), '最下位との差 0.0 pt'));
+        $this->assertTrue($eastFukuoka->groups()->where('groups.name', '横山')->exists());
     }
 }
