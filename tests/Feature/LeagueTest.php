@@ -155,7 +155,7 @@ class LeagueTest extends TestCase
 
     public function test_group_ranking_is_split_into_requested_categories_with_independent_last_place_gaps(): void
     {
-        $groups = collect(['益田', '三浦', '本田', '馬場', 'すぎちゃんず', '古川', '横山'])->map(function (string $name, int $index): Group {
+        $groups = collect(['益田', '三浦', '本田', '馬場', 'すぎちゃんず', '古川', '👑横山大将👑'])->map(function (string $name, int $index): Group {
             $players = collect(range(1, 4))->map(fn (int $player) => Player::create([
                 'name' => $name.$player,
                 'team_name' => 'テスト',
@@ -167,15 +167,16 @@ class LeagueTest extends TestCase
             return $group;
         })->keyBy('name');
         (require database_path('migrations/2026_09_24_001345_repair_group_category_memberships.php'))->up();
+        (require database_path('migrations/2026_09_24_002139_add_yokoyama_taisho_to_east_fukuoka_category.php'))->up();
 
         $allResponse = $this->get('/');
         $eastFukuoka = Category::where('name', '東福岡')->firstOrFail();
         $categoryResponse = $this->get(route('ranking', ['category' => $eastFukuoka->id]));
 
-        $allResponse->assertOk()->assertSeeInOrder(['すべて', '雀廃', '東福岡'])->assertSeeInOrder(['横山', '古川', 'すぎちゃんず', '馬場', '本田', '三浦', '益田']);
+        $allResponse->assertOk()->assertSeeInOrder(['すべて', '雀廃', '東福岡'])->assertSeeInOrder(['👑横山大将👑', '古川', 'すぎちゃんず', '馬場', '本田', '三浦', '益田']);
         $this->assertSame(1, substr_count($allResponse->getContent(), '>益田<'));
-        $categoryResponse->assertOk()->assertSeeInOrder(['東福岡', '横山', '古川', 'すぎちゃんず', '益田'])->assertDontSee('馬場</h3>', false);
+        $categoryResponse->assertOk()->assertSeeInOrder(['東福岡', '👑横山大将👑', '古川', 'すぎちゃんず', '益田'])->assertDontSee('馬場</h3>', false);
         $this->assertSame(1, substr_count($categoryResponse->getContent(), '最下位との差 0.0 pt'));
-        $this->assertTrue($eastFukuoka->groups()->where('groups.name', '横山')->exists());
+        $this->assertTrue($eastFukuoka->groups()->where('groups.name', '👑横山大将👑')->exists());
     }
 }
