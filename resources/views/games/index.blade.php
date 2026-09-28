@@ -6,7 +6,7 @@
         <p class="eyebrow">SCHEDULE & RESULTS / 2026–27</p>
         <h1 class="page-title">対局日程・結果</h1>
         <div class="hero-line" aria-hidden="true"></div>
-        <p class="page-intro">日付を選んで出場選手と対局結果を確認できます。出場予定と結果は公式サイト掲載後、5分ごとに確認します。</p>
+        <p class="page-intro">日付を選んで出場選手と対局結果を確認できます。</p>
     </div>
 </div>
 <form method="get" action="{{ route('games.index') }}" class="game-date-form">

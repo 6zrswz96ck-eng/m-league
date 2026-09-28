@@ -5,7 +5,7 @@
     <p class="eyebrow">TEAM RANKING / REGULAR SEASON</p>
     <h1 class="page-title">チームポイントランキング</h1>
     <div class="hero-line" aria-hidden="true"></div>
-    <p class="page-intro">Mリーグ公式のレギュラーシーズン順位・ポイントです。5分ごとに確認します。</p>
+    <p class="page-intro">Mリーグ公式のレギュラーシーズン順位・ポイントです。</p>
 </div></div>
 <p class="muted">最終取得：{{ $last ? \Carbon\CarbonImmutable::parse($last)->timezone('Asia/Tokyo')->format('Y/m/d H:i') : '未取得' }}</p>
 @if($syncError)<p class="alert error">最新情報を取得できていません。前回取得した情報を表示しています。</p>@endif
