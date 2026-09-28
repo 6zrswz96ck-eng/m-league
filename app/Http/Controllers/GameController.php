@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeagueGame;
+use App\Models\Player;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -19,9 +20,13 @@ class GameController extends Controller
             ->map(fn ($day) => CarbonImmutable::parse($day)->toDateString())
             ->push($today)->push($date)->unique()->sortDesc()->values();
         $games = LeagueGame::whereDate('played_on', $date)->orderBy('round')->orderBy('source_key')->get();
+        $playerNames = $games->flatMap(fn (LeagueGame $game) => array_column($game->entries, 'player_name'))->filter()->unique();
+        $selectedBy = Player::with(['groups' => fn ($query) => $query->orderBy('name')])
+            ->whereIn('name', $playerNames)->get()->mapWithKeys(fn (Player $player) => [$player->name => $player->groups]);
 
         return view('games.index', [
             'dates' => $dates, 'date' => $date, 'today' => $today, 'games' => $games,
+            'selectedBy' => $selectedBy,
             'last' => Cache::get('games.last_success_at'), 'syncError' => Cache::get('games.sync_error', false),
         ]);
     }

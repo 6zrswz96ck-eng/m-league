@@ -33,7 +33,16 @@
                 @foreach($game->entries as $entry)
                     <tr>
                         <td>{{ $entry['rank'] !== null ? $entry['rank'].'位' : '—' }}</td>
-                        <td><strong>{{ $entry['player_name'] ?? '出場選手未発表' }}</strong><br><x-team-badge :team="$entry['team_name']" /></td>
+                        <td>
+                            <strong>{{ $entry['player_name'] ?? '出場選手未発表' }}</strong><br><x-team-badge :team="$entry['team_name']" />
+                            @if($entry['player_name'] !== null && $selectedBy->get($entry['player_name'])?->isNotEmpty())
+                                <div class="game-selections"><span class="game-selections-label">この選手を選択中</span>
+                                    @foreach($selectedBy->get($entry['player_name']) as $group)
+                                        <span class="game-selection-name">{{ $group->name }}</span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </td>
                         <td class="{{ $entry['points'] !== null && $entry['points'] > 0 ? 'plus' : ($entry['points'] !== null && $entry['points'] < 0 ? 'minus' : '') }}">{{ $entry['points'] === null ? '—' : ($entry['points'] > 0 ? '+' : '').number_format((float) $entry['points'], 1).' pt' }}</td>
                     </tr>
                 @endforeach

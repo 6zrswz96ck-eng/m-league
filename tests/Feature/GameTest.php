@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Group;
 use App\Models\LeagueGame;
 use App\Models\Player;
 use App\Services\MLeagueGameService;
@@ -13,6 +14,30 @@ use Tests\TestCase;
 class GameTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_games_show_all_current_groups_selecting_each_announced_player(): void
+    {
+        $player = Player::create(['name' => '出場選手', 'team_name' => 'チームA']);
+        $other = Player::create(['name' => '未出場選手', 'team_name' => 'チームB']);
+        $first = Group::create(['name' => '益田']);
+        $second = Group::create(['name' => '三浦']);
+        $unrelated = Group::create(['name' => '未出場のみ選択']);
+        $first->players()->attach($player);
+        $second->players()->attach($player);
+        $unrelated->players()->attach($other);
+        $game = LeagueGame::factory()->create(['status' => 'announced', 'entries' => [
+            ['player_name' => '出場選手', 'team_name' => 'チームA', 'rank' => null, 'points' => null],
+            ['player_name' => null, 'team_name' => 'チームB', 'rank' => null, 'points' => null],
+        ]]);
+        $url = '/games?date=2026-09-28';
+        $this->get($url)->assertOk()->assertSee('この選手を選択中')->assertSee('益田')->assertSee('三浦')->assertDontSee('未出場のみ選択');
+        $first->players()->sync([$other->id]);
+        $this->get($url)->assertDontSee('益田')->assertSee('三浦');
+        $game->update(['status' => 'completed']);
+        $this->get($url)->assertSee('三浦');
+        $second->players()->detach();
+        $this->get($url)->assertDontSee('この選手を選択中');
+    }
 
     public function test_public_date_selection_defaults_to_today_in_japan_and_filters_games(): void
     {
