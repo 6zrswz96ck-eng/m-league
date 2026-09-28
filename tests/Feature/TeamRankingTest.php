@@ -12,15 +12,15 @@ class TeamRankingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_official_teams_are_public_with_points_games_and_last_place_gap(): void
+    public function test_official_teams_are_public_with_previous_team_gap_and_sixth_place_border(): void
     {
         Http::preventStrayRequests();
         Http::fake(['https://m-league.jp/' => Http::response($this->source())]);
         $this->artisan('mleague:teams')->assertExitCode(0);
         $this->get('/teams/ranking')->assertOk()->assertSee('KONAMI 麻雀格闘倶楽部')
-            ->assertSee('+100.0 pt')->assertSee('-80.0 pt')->assertSee('+180.0 pt')
+            ->assertSee('+100.0 pt')->assertSee('-80.0 pt')->assertSee('1つ上との差 —')->assertSee('1つ上との差 20.0 pt')->assertDontSee('最下位との差')
             ->assertSee('10/120')->assertSee('#7a1025')
-            ->assertSeeInOrder(['1位', '2位', '3位', '10位']);
+            ->assertSeeInOrder(['1位', '2位', '3位', '6位', 'ボーダー順位', '6位ボーダー', '7位', '10位']);
         $this->assertCount(10, Cache::get('teams.ranking')['teams']);
     }
 
@@ -40,6 +40,16 @@ class TeamRankingTest extends TestCase
     public function test_uninitialized_page_does_not_invent_zero_scores(): void
     {
         $this->get('/teams/ranking')->assertOk()->assertSee('取得準備中')->assertDontSee('0.0 pt');
+    }
+
+    public function test_adjacent_tied_teams_have_zero_gap(): void
+    {
+        Cache::forever('teams.ranking', ['updated_at' => now()->toIso8601String(), 'teams' => [
+            ['name' => 'チームA', 'rank' => 1, 'points' => 123, 'games' => '1/120'],
+            ['name' => 'チームB', 'rank' => 1, 'points' => 123, 'games' => '1/120'],
+            ['name' => 'チームC', 'rank' => 3, 'points' => -14, 'games' => '1/120'],
+        ]]);
+        $this->get('/teams/ranking')->assertOk()->assertSee('1つ上との差 0.0 pt')->assertSee('1つ上との差 13.7 pt');
     }
 
     private function source(int $count = 10): string

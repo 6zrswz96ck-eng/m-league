@@ -11,9 +11,12 @@
 @if($syncError)<p class="alert error">最新情報を取得できていません。前回取得した情報を表示しています。</p>@endif
 <div class="individual-ranking">
 @forelse($teams as $team)
+    @if(!$loop->first && $teams[$loop->index - 1]['rank'] <= 6 && $team['rank'] > 6)
+        <div class="team-cutoff" role="separator" aria-label="6位ボーダー"><span>6位ボーダー</span></div>
+    @endif
     <article class="individual-row" style="--team-color: {{ \App\Support\TeamTheme::color($team['name']) }}">
         <span class="individual-rank {{ $team['points'] === $minimum ? 'minus' : 'plus' }}">{{ $team['rank'] }}位</span>
-        <div class="individual-player"><x-team-badge :team="$team['name']" /><small>試合数 {{ $team['games'] }} ・ 最下位との差 +{{ number_format(($team['points'] - $minimum) / 10, 1) }} pt</small></div>
+        <div class="individual-player"><x-team-badge :team="$team['name']" /><small>試合数 {{ $team['games'] }} ・ 1つ上との差 {{ $loop->first ? '—' : number_format(($teams[$loop->index - 1]['points'] - $team['points']) / 10, 1).' pt' }}</small>@if($team['rank'] === 6)<span class="team-cutoff-label">ボーダー順位</span>@endif</div>
         <strong class="point {{ $team['points'] > 0 ? 'plus' : ($team['points'] < 0 ? 'minus' : '') }}">{{ $team['points'] > 0 ? '+' : '' }}{{ number_format($team['points'] / 10, 1) }} pt</strong>
     </article>
 @empty
