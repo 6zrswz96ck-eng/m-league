@@ -1,7 +1,7 @@
 @extends('layout')
 @section('title', $player->name.' | Mリーグ選手成績')
 @section('content')
-<p><a href="{{ route('ranking') }}">← ランキングに戻る</a></p>
+<p><a href="{{ $returnTo }}" data-player-back>← {{ $returnLabel }}</a></p>
 <section class="card player-detail" style="--team-color: {{ \App\Support\TeamTheme::color($player->team_name) }}">
     <p class="eyebrow">PLAYER STATS / 2026–27</p>
     <h1 class="page-title">{{ $player->name }}</h1>

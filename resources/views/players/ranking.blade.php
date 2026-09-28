@@ -18,7 +18,7 @@
         @php($previousPoints = $points)
         <article class="individual-row" style="--team-color: {{ \App\Support\TeamTheme::color($player->team_name) }}">
             <span class="individual-rank">{{ $rank }}位</span>
-            <div class="individual-player"><a class="player-link" href="{{ route('players.show', $player) }}">{{ $player->name }} <span aria-hidden="true">↗</span></a><x-team-badge :team="$player->team_name" /></div>
+            <div class="individual-player"><a class="player-link" href="{{ route('players.show', ['player' => $player, 'return' => '/players/ranking']) }}">{{ $player->name }} <span aria-hidden="true">↗</span></a><x-team-badge :team="$player->team_name" /></div>
             <strong class="point {{ $points > 0 ? 'plus' : ($points < 0 ? 'minus' : '') }}">{{ $points > 0 ? '+' : '' }}{{ number_format($points / 10, 1) }} pt</strong>
         </article>
     @empty

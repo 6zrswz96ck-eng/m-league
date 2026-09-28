@@ -14,6 +14,21 @@ class LeagueTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_player_detail_returns_to_original_list_and_rejects_external_destinations(): void
+    {
+        $player = Player::create(['name' => '戻り先確認', 'team_name' => 'チーム']);
+        foreach (['/players/ranking', '/?category=2', '/players', '/'] as $destination) {
+            $this->get(route('players.show', ['player' => $player, 'return' => $destination]))
+                ->assertOk()->assertViewHas('returnTo', $destination);
+        }
+        $this->get(route('players.show', ['player' => $player, 'return' => '/players/ranking']))
+            ->assertSee('個人ポイントランキングに戻る');
+        foreach (['https://example.com', '//example.com', '/admin/groups', ['invalid']] as $destination) {
+            $this->get(route('players.show', ['player' => $player, 'return' => $destination]))
+                ->assertOk()->assertViewHas('returnTo', '/');
+        }
+    }
+
     public function test_group_requires_four_unique_players_and_ranking_uses_current_points(): void
     {
         $this->app['config']->set('league.admin_password', 'test-secret');

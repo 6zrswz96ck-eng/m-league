@@ -35,6 +35,7 @@
     @if($errors->any())<div class="alert error"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     @yield('content')
 </main>
+<script src="{{ asset('js/navigation-state.js') }}?v={{ filemtime(public_path('js/navigation-state.js')) }}" defer></script>
 @if(request()->routeIs('groups.*'))<script src="{{ asset('js/group-picker.js') }}" defer></script>@endif
 </body>
 </html>
