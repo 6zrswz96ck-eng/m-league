@@ -21,6 +21,7 @@ chown -R www-data:www-data "$(dirname "${DB_DATABASE:-/var/data/database.sqlite}
 runuser -u www-data -- php artisan migrate --force
 runuser -u www-data -- php artisan db:seed --force
 runuser -u www-data -- php artisan mleague:update || echo 'Initial score update failed; hourly retry remains active.' >&2
+runuser -u www-data -- php artisan mleague:games --history || echo 'Initial game update failed; scheduled retry remains active.' >&2
 
 runuser -u www-data -- php artisan schedule:work &
 scheduler_pid=$!
