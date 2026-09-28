@@ -14,7 +14,8 @@
             <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
             <span class="brand-name"><strong>M.LEAGUE</strong><small>PLAYER SCORES</small></span>
         </a>
-        <nav class="site-nav" aria-label="メインナビゲーション">
+        <button class="nav-toggle nav-button" type="button" aria-controls="main-navigation" aria-expanded="false" aria-label="メニューを開く"><span class="nav-toggle-icon" aria-hidden="true"><i></i><i></i><i></i></span><span>メニュー</span></button>
+        <nav id="main-navigation" class="site-nav" aria-label="メインナビゲーション">
             <a href="{{ route('ranking') }}" @class(['active' => request()->routeIs('ranking')])>グループランキング</a>
             <a href="{{ route('players.ranking') }}" @class(['active' => request()->routeIs('players.ranking')])>個人ポイントランキング</a>
             <a href="{{ route('teams.ranking') }}" @class(['active' => request()->routeIs('teams.ranking')])>チームポイントランキング</a>
@@ -35,6 +36,7 @@
     @if($errors->any())<div class="alert error"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     @yield('content')
 </main>
+<script src="{{ asset('js/mobile-menu.js') }}?v={{ filemtime(public_path('js/mobile-menu.js')) }}" defer></script>
 <script src="{{ asset('js/navigation-state.js') }}?v={{ filemtime(public_path('js/navigation-state.js')) }}" defer></script>
 @if(request()->routeIs('groups.*'))<script src="{{ asset('js/group-picker.js') }}" defer></script>@endif
 </body>
