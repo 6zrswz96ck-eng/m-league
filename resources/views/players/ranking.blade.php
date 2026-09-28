@@ -1,10 +1,10 @@
 @extends('layout')
-@section('title', '選手ポイントランキング | Mリーグ選手成績')
+@section('title', '個人ポイントランキング | Mリーグ選手成績')
 @section('content')
 <div class="section-head">
     <div>
         <p class="eyebrow">2026–27 INDIVIDUAL RANKING</p>
-        <h1 class="page-title">選手ポイントランキング</h1>
+        <h1 class="page-title">個人ポイントランキング</h1>
         <div class="hero-line" aria-hidden="true"></div>
         <p class="page-intro">今シーズンの個人ポイント順です。同点の選手は同順位で表示します。選手名を押すと着順回数を確認できます。</p>
     </div>

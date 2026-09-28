@@ -2,6 +2,7 @@
 
 use App\Services\MLeagueGameService;
 use App\Services\MLeagueScoreService;
+use App\Services\MLeagueTeamService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
@@ -17,6 +18,20 @@ Artisan::command('mleague:update', function (MLeagueScoreService $service) {
     }
 })->purpose('Mリーグ公式サイトから今季の個人成績を更新');
 Schedule::command('mleague:update')->hourly()->withoutOverlapping();
+
+Artisan::command('mleague:teams', function (MLeagueTeamService $service) {
+    try {
+        $this->info($service->update().'チームの成績を更新しました。');
+
+        return 0;
+    } catch (Throwable $exception) {
+        report($exception);
+        $this->error('チーム成績を取得できませんでした。保存済みの成績を保持します。');
+
+        return 1;
+    }
+})->purpose('公式チームランキングを更新');
+Schedule::command('mleague:teams')->everyFiveMinutes()->withoutOverlapping(10)->runInBackground();
 
 Artisan::command('mleague:games {--history : 今季の過去の月も再取得}', function (MLeagueGameService $service) {
     try {

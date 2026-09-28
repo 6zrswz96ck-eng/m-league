@@ -61,7 +61,7 @@ class LeagueTest extends TestCase
         $second = Player::create(['name' => '二位', 'team_name' => 'EARTH JETS', 'season_point' => 10]);
         $first = Player::create(['name' => '一位', 'team_name' => 'EARTH JETS', 'season_point' => 20]);
         Player::create(['name' => '同点', 'team_name' => 'EARTH JETS', 'season_point' => 10]);
-        $response = $this->get(route('players.ranking'))->assertOk()->assertSee('選手ポイントランキング')->assertSee('+20.0 pt')->assertSee('#176b4a')->assertSee(route('players.show', $first));
+        $response = $this->get(route('players.ranking'))->assertOk()->assertSee('個人ポイントランキング')->assertSee('+20.0 pt')->assertSee('#176b4a')->assertSee(route('players.show', $first));
         $html = $response->getContent();
         $this->assertLessThan(strpos($html, '二位'), strpos($html, '一位'));
         $this->assertSame(2, substr_count($html, '2位</span>'));

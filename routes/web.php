@@ -5,11 +5,13 @@ use App\Http\Controllers\GameController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\TeamRankingController;
 use App\Http\Middleware\AdminAccess;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [RankingController::class, 'index'])->name('ranking');
 Route::get('/games', [GameController::class, 'index'])->name('games.index');
+Route::get('/teams/ranking', [TeamRankingController::class, 'index'])->name('teams.ranking');
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
 Route::get('/players/ranking', [PlayerController::class, 'ranking'])->name('players.ranking');
 Route::get('/players/{player}', [PlayerController::class, 'show'])->name('players.show');
