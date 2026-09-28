@@ -29,6 +29,7 @@ class GroupResultsController extends Controller
 
         return view('groups.results', [
             'groups' => $groups, 'selected' => $selected, 'results' => $results,
+            'totalTenths' => $selected?->players->sum(fn ($player) => (int) round((float) $player->season_point * 10)),
             'last' => Cache::get('games.last_success_at'), 'syncError' => Cache::get('games.sync_error', false),
         ]);
     }

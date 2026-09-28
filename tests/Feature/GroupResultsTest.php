@@ -12,6 +12,19 @@ class GroupResultsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_total_uses_current_roster_season_points_even_without_match_history(): void
+    {
+        $group = Group::create(['name' => '総合確認']);
+        $players = collect(['100.1', '-20.2', '0.0', '30.4', '-200.0'])->map(fn ($points, $i) => Player::create([
+            'name' => '集計選手'.$i, 'team_name' => 'チーム', 'season_point' => $points,
+        ]));
+        $group->players()->attach($players->take(4)->pluck('id'));
+        $url = route('groups.results', ['group' => $group->id]);
+        $this->get($url)->assertOk()->assertSee('現在の総合ポイント')->assertSee('+110.3 pt')->assertViewHas('totalTenths', 1103);
+        $group->players()->sync($players->skip(1)->pluck('id'));
+        $this->get($url)->assertSee('-189.8 pt')->assertViewHas('totalTenths', -1898);
+    }
+
     public function test_public_history_filters_to_current_roster_and_completed_games_in_date_order(): void
     {
         $group = Group::create(['name' => '益田']);

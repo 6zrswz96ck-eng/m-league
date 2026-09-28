@@ -18,6 +18,11 @@
     <button type="submit">表示する</button>
 </form>
 @if($selected)
+    <section class="card">
+        <h2>{{ $selected->name }}さんの現在の総合ポイント</h2>
+        <strong class="point {{ $totalTenths > 0 ? 'plus' : ($totalTenths < 0 ? 'minus' : '') }}">{{ $totalTenths > 0 ? '+' : '' }}{{ number_format($totalTenths / 10, 1) }} pt</strong>
+        <p class="muted">選択中の4選手の今季個人ポイント合計（グループランキングと同じ集計）</p>
+    </section>
     <h2>{{ $selected->name }}さんの選択選手</h2>
     <div class="grid">
         @foreach($selected->players as $player)
