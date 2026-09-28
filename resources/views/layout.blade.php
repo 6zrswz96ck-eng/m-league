@@ -20,9 +20,10 @@
             <a href="{{ route('players.ranking') }}" @class(['active' => request()->routeIs('players.ranking')])>個人ポイントランキング</a>
             <a href="{{ route('teams.ranking') }}" @class(['active' => request()->routeIs('teams.ranking')])>チームポイントランキング</a>
             <a href="{{ route('games.index') }}" @class(['active' => request()->routeIs('games.index')])>対局日程・結果</a>
+            <a href="{{ route('groups.results') }}" @class(['active' => request()->routeIs('groups.results')])>ユーザー別対局成績</a>
             <a href="{{ route('players.index') }}" @class(['active' => request()->routeIs('players.index')])>選手紹介</a>
             @if(session('league_admin_authenticated'))
-                <a href="{{ route('groups.index') }}" @class(['active' => request()->routeIs('groups.*')])>チーム作成・編集</a>
+                <a href="{{ route('groups.index') }}" @class(['active' => request()->routeIs('groups.index', 'groups.edit')])>チーム作成・編集</a>
                 <form method="post" action="{{ route('logout') }}">@csrf<button class="nav-button" type="submit">ログアウト</button></form>
             @else
                 <a href="{{ route('login') }}" @class(['active' => request()->routeIs('login')])>管理者ログイン</a>
@@ -38,6 +39,6 @@
 </main>
 <script src="{{ asset('js/mobile-menu.js') }}?v={{ filemtime(public_path('js/mobile-menu.js')) }}" defer></script>
 <script src="{{ asset('js/navigation-state.js') }}?v={{ filemtime(public_path('js/navigation-state.js')) }}" defer></script>
-@if(request()->routeIs('groups.*'))<script src="{{ asset('js/group-picker.js') }}" defer></script>@endif
+@if(request()->routeIs('groups.index', 'groups.edit'))<script src="{{ asset('js/group-picker.js') }}" defer></script>@endif
 </body>
 </html>

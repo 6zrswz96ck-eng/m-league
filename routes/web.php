@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminLoginController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\GroupController;
+use App\Http\Controllers\GroupResultsController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\TeamRankingController;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [RankingController::class, 'index'])->name('ranking');
 Route::get('/games', [GameController::class, 'index'])->name('games.index');
+Route::get('/group-results', [GroupResultsController::class, 'index'])->name('groups.results');
 Route::get('/teams/ranking', [TeamRankingController::class, 'index'])->name('teams.ranking');
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
 Route::get('/players/ranking', [PlayerController::class, 'ranking'])->name('players.ranking');
