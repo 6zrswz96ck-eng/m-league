@@ -20,6 +20,7 @@
     <button type="submit">表示する</button>
 </form>
 <p class="muted">最終確認：{{ $last ? \Carbon\CarbonImmutable::parse($last)->timezone('Asia/Tokyo')->format('Y/m/d H:i') : '未取得' }}　／ 点数は獲得ポイント（pt）です。</p>
+<p class="muted">東家・南家・西家・北家は、対局開始時（東1局）の席順です。</p>
 @if($syncError)<p class="alert error">最新の情報を取得できていません。前回取得した情報を表示しています。</p>@endif
 @forelse($games as $game)
     <section class="card game-card">
@@ -40,7 +41,8 @@
                     <tr>
                         <td>{{ $entry['rank'] !== null ? $entry['rank'].'位' : '—' }}</td>
                         <td>
-                            <strong>{{ $entry['player_name'] ?? '出場選手未発表' }}</strong><br><x-team-badge :team="$entry['team_name']" />
+                            <strong>{{ $entry['player_name'] ?? '出場選手未発表' }}</strong>
+                            <span class="game-seat">{{ $seats[$game->id][$entry['player_name'] ?? ''] ?? '席順未確認' }}</span><br><x-team-badge :team="$entry['team_name']" />
                             @if($entry['player_name'] !== null && $selectedBy->get($entry['player_name'])?->isNotEmpty())
                                 <div class="game-selections"><span class="game-selections-label">この選手を選択中</span>
                                     @foreach($selectedBy->get($entry['player_name']) as $group)

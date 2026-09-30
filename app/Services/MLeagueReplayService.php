@@ -11,6 +11,74 @@ use Illuminate\Support\Facades\Http;
 
 class MLeagueReplayService
 {
+    /** @return array<int, array<string, string>> */
+    public function seats(Collection $games, array $links): array
+    {
+        $seats = [];
+        foreach ($games as $game) {
+            if (! isset($links[$game->id])) {
+                continue;
+            }
+            $url = $links[$game->id];
+            $key = 'replay.seats.'.hash('sha256', $url);
+            $orderedNames = Cache::get($key);
+            if ($orderedNames === null) {
+                try {
+                    $response = Http::connectTimeout(2)->timeout(4)->get($url);
+                    $orderedNames = $response->successful() ? $this->parseSeats($response->body()) : [];
+                } catch (\Throwable $exception) {
+                    report($exception);
+                    $orderedNames = [];
+                }
+                Cache::put($key, $orderedNames, $orderedNames ? 86400 : 300);
+            }
+            if (count($orderedNames) !== 4 || $this->names($orderedNames) !== $this->names(array_column($game->entries, 'player_name'))) {
+                continue;
+            }
+            foreach (array_values($orderedNames) as $index => $name) {
+                foreach ($game->entries as $entry) {
+                    if ($this->names([$name]) === $this->names([$entry['player_name']])) {
+                        $seats[$game->id][$entry['player_name']] = ['東家', '南家', '西家', '北家'][$index];
+                    }
+                }
+            }
+        }
+
+        return $seats;
+    }
+
+    /** @return array<int, string> */
+    public function parseSeats(string $html): array
+    {
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document = new DOMDocument;
+            $document->loadHTML('<?xml encoding="UTF-8">'.$html);
+            $xpath = new DOMXPath($document);
+            foreach ($xpath->query('//a[@href]') as $anchor) {
+                $url = $anchor->getAttribute('href');
+                if (! str_starts_with($url, 'https://tenhou.net/5/#json=')) {
+                    continue;
+                }
+                $payload = explode('&', substr($url, strlen('https://tenhou.net/5/#json=')))[0];
+                $data = json_decode(rawurldecode($payload), true);
+                $names = $data['name'] ?? null;
+                if (($data['log'][0][0][0] ?? null) !== 0 || ($data['log'][0][0][1] ?? null) !== 0
+                    || ! is_array($names) || count($names) !== 4 || count(array_filter($names, 'is_string')) !== 4) {
+                    continue;
+                }
+                if (count(array_unique($this->names($names))) === 4 && ! in_array('', $this->names($names), true)) {
+                    return array_values($names);
+                }
+            }
+
+            return [];
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+    }
+
     /** @return array<int, string> */
     public function links(Collection $games): array
     {

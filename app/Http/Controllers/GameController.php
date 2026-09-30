@@ -26,10 +26,12 @@ class GameController extends Controller
         $selectedBy = Player::with(['groups' => fn ($query) => $query->orderBy('name')])
             ->whereIn('name', $playerNames)->get()->mapWithKeys(fn (Player $player) => [$player->name => $player->groups]);
 
+        $replayLinks = $replays->links($games);
+
         return view('games.index', [
             'dates' => $dates, 'date' => $date, 'today' => $today, 'games' => $games,
             'selectedBy' => $selectedBy,
-            'replayLinks' => $replays->links($games),
+            'replayLinks' => $replayLinks, 'seats' => $replays->seats($games, $replayLinks),
             'last' => Cache::get('games.last_success_at'), 'syncError' => Cache::get('games.sync_error', false),
         ]);
     }
