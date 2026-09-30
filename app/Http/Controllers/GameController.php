@@ -15,10 +15,11 @@ class GameController extends Controller
     {
         $request->validate(['date' => ['nullable', 'date_format:Y-m-d']]);
         $today = CarbonImmutable::now('Asia/Tokyo')->toDateString();
-        $date = $request->input('date') ?: $today;
         $dates = LeagueGame::query()->distinct()->orderByDesc('played_on')->pluck('played_on')
             ->map(fn ($day) => CarbonImmutable::parse($day)->toDateString())
-            ->push($today)->push($date)->unique()->sortDesc()->values();
+            ->unique()->values();
+        $defaultDate = $dates->first(fn (string $day) => $day <= $today) ?? $dates->last() ?? $today;
+        $date = $request->input('date') ?: $defaultDate;
         $games = LeagueGame::whereDate('played_on', $date)->orderBy('round')->orderBy('source_key')->get();
         $playerNames = $games->flatMap(fn (LeagueGame $game) => array_column($game->entries, 'player_name'))->filter()->unique();
         $selectedBy = Player::with(['groups' => fn ($query) => $query->orderBy('name')])

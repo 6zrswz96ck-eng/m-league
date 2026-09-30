@@ -15,6 +15,20 @@ class GameTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_date_dropdown_only_lists_published_games_with_weekdays(): void
+    {
+        $this->travelTo(now()->setTimezone('Asia/Tokyo')->setDate(2026, 9, 30)->setTime(12, 0));
+        LeagueGame::factory()->create(['played_on' => '2026-09-29']);
+        LeagueGame::factory()->create(['played_on' => '2026-10-01']);
+        $this->get('/games')->assertOk()->assertSee('2026/09/29（火）')->assertSee('2026/10/01（木）')
+            ->assertDontSee('value="2026-09-30"', false)->assertViewHas('date', '2026-09-29');
+        $this->get('/games?date=2026-10-03')->assertDontSee('value="2026-10-03"', false);
+        LeagueGame::factory()->create(['played_on' => '2026-10-03']);
+        $this->get('/games')->assertSee('2026/10/03（土）');
+        LeagueGame::factory()->create(['played_on' => '2026-09-30']);
+        $this->get('/games')->assertSee('2026/09/30（水） 今日')->assertViewHas('date', '2026-09-30');
+    }
+
     public function test_games_show_all_current_groups_selecting_each_announced_player(): void
     {
         $player = Player::create(['name' => '出場選手', 'team_name' => 'チームA']);

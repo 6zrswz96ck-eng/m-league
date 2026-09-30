@@ -12,8 +12,9 @@
 <form method="get" action="{{ route('games.index') }}" class="game-date-form">
     <label for="game-date">対局日</label>
     <select id="game-date" name="date" onchange="this.form.submit()">
+        @if(!$dates->contains($date))<option value="" selected disabled>{{ $dates->isEmpty() ? '公開済みの対局日程はありません' : '対局日を選択してください' }}</option>@endif
         @foreach($dates as $option)
-            <option value="{{ $option }}" @selected($date === $option)>{{ \Carbon\CarbonImmutable::parse($option)->format('Y/m/d') }}{{ $option === $today ? '（今日）' : '' }}</option>
+            <option value="{{ $option }}" @selected($date === $option)>{{ \Carbon\CarbonImmutable::parse($option)->format('Y/m/d') }}（{{ ['日', '月', '火', '水', '木', '金', '土'][\Carbon\CarbonImmutable::parse($option)->dayOfWeek] }}）{{ $option === $today ? ' 今日' : '' }}</option>
         @endforeach
     </select>
     <button type="submit">表示する</button>
