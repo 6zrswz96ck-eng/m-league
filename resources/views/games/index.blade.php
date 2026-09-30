@@ -8,7 +8,9 @@
         <div class="hero-line" aria-hidden="true"></div>
         <p class="page-intro">日付を選んで出場選手と対局結果を確認できます。</p>
     </div>
+    <a class="button" href="https://m-league.konoui.dev/" target="_blank" rel="noopener noreferrer">牌譜一覧を開く <span aria-hidden="true">↗</span></a>
 </div>
+<p class="muted">牌譜は別タブで開きます。リンク先でシーズン・日付・対局を選んでください。</p>
 <form method="get" action="{{ route('games.index') }}" class="game-date-form">
     <label for="game-date">対局日</label>
     <select id="game-date" name="date" onchange="this.form.submit()">
