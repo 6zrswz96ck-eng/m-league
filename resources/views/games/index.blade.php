@@ -8,9 +8,7 @@
         <div class="hero-line" aria-hidden="true"></div>
         <p class="page-intro">日付を選んで出場選手と対局結果を確認できます。</p>
     </div>
-    <a class="button" href="https://m-league.konoui.dev/" target="_blank" rel="noopener noreferrer">牌譜一覧を開く <span aria-hidden="true">↗</span></a>
 </div>
-<p class="muted">牌譜は別タブで開きます。リンク先でシーズン・日付・対局を選んでください。</p>
 <form method="get" action="{{ route('games.index') }}" class="game-date-form">
     <label for="game-date">対局日</label>
     <select id="game-date" name="date" onchange="this.form.submit()">
@@ -28,6 +26,11 @@
         <div class="top">
             <h2>第{{ $game->round }}回戦</h2>
             <span class="game-status">{{ ['completed' => '結果確定', 'announced' => '出場予定・結果待ち', 'scheduled' => '出場選手の発表待ち'][$game->status] }}</span>
+            @if(isset($replayLinks[$game->id]))
+                <a class="button" href="{{ $replayLinks[$game->id] }}" target="_blank" rel="noopener noreferrer">この対局の牌譜を開く ↗</a>
+            @else
+                <span class="muted">この対局の牌譜はまだ確認できません</span>
+            @endif
         </div>
         <div class="game-table-wrap">
             <table class="game-table">
