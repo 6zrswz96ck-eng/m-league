@@ -14,6 +14,7 @@ Route::get('/', [RankingController::class, 'index'])->name('ranking');
 Route::get('/games', [GameController::class, 'index'])->name('games.index');
 Route::get('/group-results', [GroupResultsController::class, 'index'])->name('groups.results');
 Route::get('/teams/ranking', [TeamRankingController::class, 'index'])->name('teams.ranking');
+Route::get('/teams/details', [TeamRankingController::class, 'show'])->name('teams.show');
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
 Route::get('/players/ranking', [PlayerController::class, 'ranking'])->name('players.ranking');
 Route::get('/players/{player}', [PlayerController::class, 'show'])->name('players.show');

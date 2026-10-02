@@ -23,13 +23,13 @@ class PlayerController extends Controller
     public function show(Request $request, Player $player): View
     {
         $returnTo = $request->query('return');
-        if (! is_string($returnTo) || ! preg_match('~^(?:/(?:\?category=\d+)?|/players(?:/ranking)?)$~D', $returnTo)) {
+        if (! is_string($returnTo) || ! preg_match('~^(?:/(?:\?category=\d+)?|/players(?:/ranking)?|/teams/details\?team=[^&]{1,150})$~D', $returnTo)) {
             $returnTo = '/';
         }
         $returnLabel = match ($returnTo) {
             '/players/ranking' => '個人ポイントランキングに戻る',
             '/players' => '選手紹介に戻る',
-            default => 'グループランキングに戻る',
+            default => str_starts_with($returnTo, '/teams/details?team=') ? 'チーム構成に戻る' : 'グループランキングに戻る',
         };
 
         return view('players.show', compact('player', 'returnTo', 'returnLabel'));

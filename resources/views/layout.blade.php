@@ -18,7 +18,7 @@
         <nav id="main-navigation" class="site-nav" aria-label="メインナビゲーション">
             <a href="{{ route('ranking') }}" @class(['active' => request()->routeIs('ranking')])>グループランキング</a>
             <a href="{{ route('players.ranking') }}" @class(['active' => request()->routeIs('players.ranking')])>個人ポイントランキング</a>
-            <a href="{{ route('teams.ranking') }}" @class(['active' => request()->routeIs('teams.ranking')])>チームポイントランキング</a>
+            <a href="{{ route('teams.ranking') }}" @class(['active' => request()->routeIs('teams.*')])>チームポイントランキング</a>
             <a href="{{ route('games.index') }}" @class(['active' => request()->routeIs('games.index')])>対局日程・結果</a>
             <a href="{{ route('groups.results') }}" @class(['active' => request()->routeIs('groups.results')])>ユーザー別対局成績</a>
             <a href="{{ route('players.index') }}" @class(['active' => request()->routeIs('players.index')])>選手紹介</a>

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Player;
 use App\Services\MLeagueTeamService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -11,6 +12,31 @@ use Tests\TestCase;
 class TeamRankingTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_team_ranking_links_to_public_roster_with_each_player_point(): void
+    {
+        Cache::forever('teams.ranking', ['updated_at' => '2026-10-02T12:00:00+09:00', 'teams' => [[
+            'name' => 'KONAMI 麻雀格闘倶楽部', 'rank' => 3, 'points' => 432, 'games' => '12/120',
+        ]]]);
+        foreach ([['佐々木寿人', '25.5'], ['伊達朱里紗', '10.0'], ['滝沢和典', '-2.3'], ['高宮まり', '-8.1']] as [$name, $points]) {
+            Player::create(['name' => $name, 'team_name' => 'KONAMI 麻雀格闘倶楽部', 'season_point' => $points]);
+        }
+        Player::create(['name' => '別チーム選手', 'team_name' => '別チーム', 'season_point' => '999.9']);
+
+        $url = route('teams.show', ['team' => 'KONAMI 麻雀格闘倶楽部']);
+        $this->get(route('teams.ranking'))->assertOk()->assertSee($url)->assertSee('構成選手を見る');
+        $this->get($url)->assertOk()->assertSee('現在のチームポイント')->assertSee('+43.2 pt')->assertSee('3位')
+            ->assertSeeInOrder(['佐々木寿人', '+25.5 pt', '伊達朱里紗', '+10.0 pt', '滝沢和典', '-2.3 pt', '高宮まり', '-8.1 pt'])
+            ->assertDontSee('別チーム選手');
+        $this->get(route('players.show', ['player' => Player::where('name', '佐々木寿人')->firstOrFail(), 'return' => '/teams/details?team='.urlencode('KONAMI 麻雀格闘倶楽部')]))
+            ->assertOk()->assertSee('チーム構成に戻る');
+    }
+
+    public function test_unknown_team_detail_is_not_exposed(): void
+    {
+        $this->get('/teams/details')->assertSessionHasErrors('team');
+        $this->get(route('teams.show', ['team' => '存在しないチーム']))->assertNotFound();
+    }
 
     public function test_official_teams_are_public_with_previous_team_gap_and_sixth_place_border(): void
     {
