@@ -24,7 +24,8 @@ class TeamRankingTest extends TestCase
         Player::create(['name' => '別チーム選手', 'team_name' => '別チーム', 'season_point' => '999.9']);
 
         $url = route('teams.show', ['team' => 'KONAMI 麻雀格闘倶楽部']);
-        $this->get(route('teams.ranking'))->assertOk()->assertSee($url)->assertSee('構成選手を見る');
+        $this->get(route('teams.ranking'))->assertOk()->assertSee($url)
+            ->assertSeeInOrder(['構成選手を見る', '試合数 12/120', '1つ上との差']);
         $this->get($url)->assertOk()->assertSee('現在のチームポイント')->assertSee('+43.2 pt')->assertSee('3位')
             ->assertSeeInOrder(['佐々木寿人', '+25.5 pt', '伊達朱里紗', '+10.0 pt', '滝沢和典', '-2.3 pt', '高宮まり', '-8.1 pt'])
             ->assertDontSee('別チーム選手');
