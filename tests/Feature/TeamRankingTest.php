@@ -42,11 +42,11 @@ class TeamRankingTest extends TestCase
     public function test_official_teams_are_public_with_previous_team_gap_and_sixth_place_border(): void
     {
         Http::preventStrayRequests();
-        Http::fake(['https://m-league.jp/' => Http::response($this->source())]);
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=ranking' => Http::response($this->source())]);
         $this->artisan('mleague:teams')->assertExitCode(0);
         $this->get('/teams/ranking')->assertOk()->assertSee('KONAMI 麻雀格闘倶楽部')
             ->assertSee('+100.0 pt')->assertSee('-80.0 pt')->assertSee('1つ上との差 —')->assertSee('1つ上との差 20.0 pt')->assertDontSee('最下位との差')
-            ->assertSee('10/120')->assertSee('#7a1025')
+            ->assertSee('試合数 10')->assertSee('#7a1025')
             ->assertSeeInOrder(['1位', '2位', '3位', '6位', 'ボーダー順位', '6位ボーダー', '7位', '10位']);
         $this->assertCount(10, Cache::get('teams.ranking')['teams']);
     }
@@ -54,7 +54,7 @@ class TeamRankingTest extends TestCase
     public function test_missing_or_invalid_source_preserves_last_good_snapshot(): void
     {
         Http::preventStrayRequests();
-        Http::fake(['https://m-league.jp/' => Http::sequence()->push($this->source())->push($this->source(9))->push('unavailable', 503)]);
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=ranking' => Http::sequence()->push($this->source())->push($this->source(9))->push('unavailable', 503)]);
         app(MLeagueTeamService::class)->update();
         $saved = Cache::get('teams.ranking');
         $this->artisan('mleague:teams')->assertExitCode(1);
@@ -79,14 +79,54 @@ class TeamRankingTest extends TestCase
         $this->get('/teams/ranking')->assertOk()->assertSee('1つ上との差 0.0 pt')->assertSee('1つ上との差 13.7 pt');
     }
 
+    public function test_stale_or_invalid_api_data_keeps_the_previous_team_ranking(): void
+    {
+        Http::preventStrayRequests();
+        $payload = json_decode($this->source(), true);
+        $invalidPayloads = [
+            array_replace_recursive($payload, ['stale' => true]),
+            array_replace_recursive($payload, ['season' => ['phase' => 'final']]),
+            array_replace_recursive($payload, ['ranking' => ['teams' => [0 => ['points' => null]]]]),
+            array_replace_recursive($payload, ['ranking' => ['teams' => [0 => ['games' => -1]]]]),
+            array_replace_recursive($payload, ['ranking' => ['teams' => [1 => ['name' => 'KONAMI麻雀格闘倶楽部']]]]),
+        ];
+        $sequence = Http::sequence()->push($payload);
+        foreach ($invalidPayloads as $invalidPayload) {
+            $sequence->push($invalidPayload);
+        }
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=ranking' => $sequence]);
+        app(MLeagueTeamService::class)->update();
+        $saved = Cache::get('teams.ranking');
+        foreach ($invalidPayloads as $invalidPayload) {
+
+            $this->artisan('mleague:teams')->assertExitCode(1);
+
+            $this->assertSame($saved, Cache::get('teams.ranking'));
+        }
+    }
+
+    public function test_api_team_ranks_are_sorted_by_points_and_share_tied_places(): void
+    {
+        $payload = json_decode($this->source(), true);
+        $payload['ranking']['teams'][1]['points'] = 100;
+        $payload['ranking']['teams'] = array_reverse($payload['ranking']['teams']);
+
+        $teams = app(MLeagueTeamService::class)->parse(json_encode($payload));
+
+        $this->assertSame([1, 1, 3], array_column(array_slice($teams, 0, 3), 'rank'));
+        $this->assertSame(1000, $teams[0]['points']);
+    }
+
     private function source(int $count = 10): string
     {
-        $html = '<ol class="p-ranking__team-list -regular">';
+        $teams = [];
         foreach (range(1, $count) as $rank) {
-            $name = $rank === 1 ? 'KONAMI麻雀格闘倶楽部' : 'チーム'.$rank;
-            $html .= '<li class="p-ranking__team-item"><span class="p-ranking__rank-number">'.$rank.'</span><div class="p-ranking__team-symbol"><img alt="'.$name.'"></div><span class="p-ranking__current-point">'.(120 - $rank * 20).'pt</span><span class="p-ranking__game-count">10/120</span></li>';
+            $teams[] = ['name' => $rank === 1 ? 'KONAMI麻雀格闘倶楽部' : 'チーム'.$rank,
+                'points' => 120 - $rank * 20, 'games' => 10, 'rank' => $rank];
         }
 
-        return $html.'</ol>';
+        return json_encode(['mode' => 'api', 'stale' => false,
+            'season' => ['year' => 2026, 'phase' => 'regular', 'name' => '2026-27レギュラーシーズン'],
+            'ranking' => ['teams' => $teams]], JSON_THROW_ON_ERROR);
     }
 }

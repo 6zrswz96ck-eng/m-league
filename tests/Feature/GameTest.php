@@ -73,8 +73,8 @@ class GameTest extends TestCase
         $this->players();
         Http::preventStrayRequests();
         Http::fake([
-            'https://m-league.jp/games/*' => Http::response($this->schedule(true)),
-            'https://m-league.jp/' => Http::response($this->lineup()),
+            'https://m-league.jp/api/mleague/data?kind=games' => Http::sequence()
+                ->push($this->source(true))->push($this->source(true))->push($this->source(false, false)),
         ]);
         $service = app(MLeagueGameService::class);
 
@@ -87,12 +87,8 @@ class GameTest extends TestCase
         $this->assertSame('-42.3', $first->entries[3]['points']);
         $this->assertSame('選手 1', $first->entries[0]['player_name']);
         $this->assertSame('announced', LeagueGame::where('round', 2)->firstOrFail()->status);
-        Http::assertSentCount(4);
+        Http::assertSentCount(2);
 
-        Http::fake([
-            'https://m-league.jp/games/*' => Http::response($this->schedule(false)),
-            'https://m-league.jp/' => Http::response('<section class="p-opponentCard"></section>'),
-        ]);
         $service->update();
         $this->assertSame('completed', $first->fresh()->status);
         $this->assertSame('announced', LeagueGame::where('round', 2)->firstOrFail()->status);
@@ -104,7 +100,7 @@ class GameTest extends TestCase
         $game = LeagueGame::factory()->create(['status' => 'completed']);
         Cache::forever('games.last_success_at', '2026-09-27T12:00:00+09:00');
         Http::preventStrayRequests();
-        Http::fake(['https://m-league.jp/games/*' => Http::response('<html>maintenance</html>')]);
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=games' => Http::response('<html>maintenance</html>')]);
 
         $this->artisan('mleague:games')->assertExitCode(1);
 
@@ -120,35 +116,94 @@ class GameTest extends TestCase
         foreach (range(5, 8) as $i) {
             Player::create(['name' => '選手 '.$i, 'team_name' => 'チーム'.$i]);
         }
-        $first = $this->schedule(false);
+        $first = $this->source(false, false);
         $second = strtr($first, ['チーム1' => 'チーム5', 'チーム2' => 'チーム6', 'チーム3' => 'チーム7', 'チーム4' => 'チーム8']);
+        $payload = json_decode($first, true);
+        $payload['games'] = array_merge($payload['games'], json_decode($second, true)['games']);
         $service = app(MLeagueGameService::class);
 
-        $rows = $service->parseSchedule($first.$second, 2026, 9);
-        $lineups = $service->parseLineups(str_replace('出場選手 選手1', '出場選手 未定', $this->lineup()));
-
+        $rows = $service->parse(json_encode($payload));
+        $lineups = $service->parse($first);
         $this->assertCount(4, array_unique(array_column($rows, 'source_key')));
         $this->assertSame('scheduled', $lineups[0]['status']);
         $this->assertNull($lineups[0]['entries'][0]['player_name']);
         $this->assertNull($lineups[0]['entries'][0]['points']);
     }
 
-    public function test_history_fetches_months_since_season_start_and_keeps_dates(): void
+    public function test_history_fetches_full_season_and_keeps_japan_dates(): void
     {
         $this->travelTo(now()->setDate(2026, 10, 1));
         $this->players();
         Http::preventStrayRequests();
-        Http::fake([
-            'https://m-league.jp/games/?mly=2026&mlm=9' => Http::response($this->schedule(false)),
-            'https://m-league.jp/games/?mly=2026&mlm=10' => Http::response(str_replace('9/28', '10/1', $this->schedule(false))),
-            'https://m-league.jp/' => Http::response('<section class="p-opponentCard"></section>'),
-        ]);
-
+        $payload = json_decode($this->source(false, false), true);
+        $nextMonth = json_decode(str_replace('2026-09-28T10:00:00.000Z', '2026-09-30T15:00:00.000Z', $this->source(false, false)), true);
+        $payload['games'] = array_merge($payload['games'], $nextMonth['games']);
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=games' => Http::response($payload)]);
         app(MLeagueGameService::class)->update(true);
 
         $this->assertSame(2, LeagueGame::whereDate('played_on', '2026-09-28')->count());
         $this->assertSame(2, LeagueGame::whereDate('played_on', '2026-10-01')->count());
-        Http::assertSentCount(3);
+        Http::assertSentCount(1);
+    }
+
+    public function test_published_players_are_visible_and_tied_results_are_preserved(): void
+    {
+        $this->travelTo(now()->setTimezone('Asia/Tokyo')->setDate(2026, 9, 28)->setTime(12, 0));
+        $this->players();
+        Http::preventStrayRequests();
+        $payload = json_decode($this->source(true), true);
+        $payload['games'][0]['players'][2]['rank'] = 2;
+        $payload['games'][0]['players'][2]['point'] = 3.8;
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=games' => Http::response($payload)]);
+
+        $this->artisan('mleague:games')->assertExitCode(0);
+
+        $this->get('/games')->assertSee('選手 1')->assertSee('出場選手未発表');
+        $first = LeagueGame::where('round', 1)->firstOrFail();
+        $this->assertSame(2, $first->entries[2]['rank']);
+        $this->assertSame('3.8', $first->entries[2]['points']);
+        $second = LeagueGame::where('round', 2)->firstOrFail();
+        $this->assertSame('announced', $second->status);
+        $this->assertSame('選手 1', $second->entries[0]['player_name']);
+        $this->assertNull($second->entries[0]['points']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_invalid_api_data_does_not_replace_saved_games_or_last_success(): void
+    {
+        $this->players();
+        Http::preventStrayRequests();
+        $game = LeagueGame::factory()->create(['status' => 'completed']);
+        $savedEntries = $game->entries;
+        Cache::forever('games.last_success_at', '2026-09-27T12:00:00+09:00');
+        $payload = json_decode($this->source(true), true);
+        $invalidPayloads = [
+            array_replace_recursive($payload, ['stale' => true]),
+            array_replace_recursive($payload, ['season' => ['year' => 2025]]),
+            array_replace_recursive($payload, ['games' => [0 => ['date' => '2026-02-30T00:00:00Z']]]),
+            array_replace_recursive($payload, ['games' => [0 => ['players' => [0 => ['name' => '不明な選手']]]]]),
+            array_replace_recursive($payload, ['games' => [0 => ['players' => [0 => ['point' => null]]]]]),
+            array_replace_recursive($payload, ['games' => [0 => ['players' => [0 => ['team' => 'チーム2']]]]]),
+        ];
+        $missingPlayer = $payload;
+        array_pop($missingPlayer['games'][0]['players']);
+        $invalidPayloads[] = $missingPlayer;
+        $duplicate = $payload;
+        $duplicate['games'][] = $payload['games'][0];
+        $invalidPayloads[] = $duplicate;
+        $sequence = Http::sequence();
+        foreach ($invalidPayloads as $invalidPayload) {
+            $sequence->push($invalidPayload);
+        }
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=games' => $sequence]);
+        foreach ($invalidPayloads as $invalidPayload) {
+
+            $this->artisan('mleague:games')->assertExitCode(1);
+
+            $this->assertDatabaseCount('league_games', 1);
+            $this->assertSame($savedEntries, $game->fresh()->entries);
+            $this->assertSame('2026-09-27T12:00:00+09:00', Cache::get('games.last_success_at'));
+        }
     }
 
     private function players(): void
@@ -158,32 +213,24 @@ class GameTest extends TestCase
         }
     }
 
-    private function lineup(): string
+    private function source(bool $completed, bool $announced = true): string
     {
-        $items = '<li class="p-opponentCard__item"><img alt="チーム1 出場選手 選手1"></li>';
-        foreach (range(2, 4) as $i) {
-            $items .= '<li class="p-opponentCard__item"><img alt="チーム'.$i.' 出場選手 未定"></li>';
-        }
-
-        return '<section class="p-opponentCard"><section class="p-opponentCard__group"><time datetime="2026-09-28"></time><b class="p-opponentCard__round">第2回戦</b><ul>'.$items.'</ul></section></section>';
-    }
-
-    private function schedule(bool $results): string
-    {
-        $logos = '';
-        foreach (range(1, 4) as $i) {
-            $logos .= '<li><img alt="チーム'.$i.'"></li>';
-        }
-        $html = '<ul class="p-gamesSchedule2__lists"><li class="p-gamesSchedule2__list" data-target="key20260928-1"><p class="p-gamesSchedule2__data">9/28（月）</p><ul class="p-gamesSchedule2__logos">'.$logos.'</ul></li></ul>';
-        if ($results) {
-            $html .= '<div id="js-modal-key20260928-1"><div class="p-gamesResult__column"><div class="p-gamesResult__number">第1回戦</div><ol>';
-            foreach (['58pt', '3.8pt', '▲19.5pt', '▲42.3pt'] as $index => $points) {
+        $games = [];
+        foreach ([1, 2] as $round) {
+            $entries = [];
+            foreach ([58, 3.8, -19.5, -42.3] as $index => $point) {
                 $number = $index + 1;
-                $html .= '<li class="p-gamesResult__rank-item"><div class="p-gamesResult__rank-badge">'.$number.'</div><div class="p-gamesResult__name">選手'.$number.'</div><div class="p-gamesResult__point">'.$points.'</div></li>';
+                $entries[] = ['team' => 'チーム'.$number,
+                    'name' => ($completed && $round === 1) || ($announced && $round === 2 && $number === 1) ? '選手'.$number : null,
+                    'point' => $completed && $round === 1 ? $point : null,
+                    'rank' => $completed && $round === 1 ? $number : null];
             }
-            $html .= '</ol></div></div>';
+            $games[] = ['date' => '2026-09-28T10:00:00.000Z', 'no' => $round,
+                'complete' => $completed && $round === 1, 'players' => $entries];
         }
 
-        return $html;
+        return json_encode(['mode' => 'api', 'stale' => false,
+            'season' => ['year' => 2026, 'phase' => 'regular', 'name' => '2026-27レギュラーシーズン'],
+            'games' => $games], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 }

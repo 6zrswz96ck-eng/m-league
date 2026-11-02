@@ -191,8 +191,12 @@ class LeagueTest extends TestCase
         array_pop($missingMetric['stats']['teams'][0]['metrics']);
         $invalidPayloads[] = $missingMetric;
         $invalidPayloads[] = $payload;
+        $sequence = Http::sequence();
         foreach ($invalidPayloads as $invalidPayload) {
-            Http::fake(['https://m-league.jp/api/mleague/data?kind=stats' => Http::response($invalidPayload)]);
+            $sequence->push($invalidPayload);
+        }
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=stats' => $sequence]);
+        foreach ($invalidPayloads as $invalidPayload) {
 
             $this->artisan('mleague:update')->assertExitCode(1);
 
