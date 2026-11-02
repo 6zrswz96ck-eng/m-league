@@ -118,18 +118,87 @@ class LeagueTest extends TestCase
 
     public function test_stats_parser_reads_each_placement_count(): void
     {
-        $tables = '';
-        foreach (range(1, 10) as $team) {
-            $names = implode('', array_map(fn ($i) => '<th scope="col">選手'.$team.'-'.$i.'</th>', range(1, 4)));
-            $tables .= '<h2 class="p-stats__teamName">チーム'.$team.'</h2><table class="p-stats__table"><tr>'.$names.'</tr>';
-            foreach (['ポイント' => '12.3', '1位' => '2', '2位' => '1', '3位' => '0', '4位' => '3'] as $label => $value) {
-                $tables .= '<tr><th>'.$label.'</th>'.str_repeat('<td>'.$value.'</td>', 4).'</tr>';
-            }
-            $tables .= '</table>';
-        }
-        $rows = app(MLeagueScoreService::class)->parse('<h1 class="c-title">Stats 2026-27</h1>'.$tables);
+        $payload = $this->scorePayload(12.3, 12.3, [2, 1, 0, 3]);
+        $rows = app(MLeagueScoreService::class)->parse(json_encode($payload, JSON_THROW_ON_ERROR));
         $this->assertCount(40, $rows);
-        $this->assertSame([1 => 2, 2 => 1, 3 => 0, 4 => 3], $rows['選手1-1']['placements']);
+        $this->assertSame([1 => 2, 2 => 1, 3 => 0, 4 => 3], $rows['選手1']['placements']);
+        $this->assertSame('12.3', $rows['選手1']['point']);
+        $payload['mode'] = 'manual';
+        $payload['data'] = $payload['stats'];
+        unset($payload['stats']);
+        $this->assertSame($rows, app(MLeagueScoreService::class)->parse(json_encode($payload, JSON_THROW_ON_ERROR)));
+    }
+
+    public function test_all_zero_source_preserves_saved_scores_and_last_successful_sync(): void
+    {
+        Http::preventStrayRequests();
+        foreach (range(1, 40) as $index) {
+            Player::create(['name' => '選手'.$index, 'team_name' => 'チーム', 'season_point' => 12.3, 'place_1_count' => 1]);
+        }
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=stats' => Http::response($this->scorePayload(0, 0, [0, 0, 0, 0]))]);
+        $group = Group::create(['name' => '保持対象', 'previous_rank' => 2, 'last_synced_rank' => 1]);
+        $group->players()->sync(Player::limit(4)->pluck('id'));
+
+        $this->artisan('mleague:update')->assertExitCode(1);
+
+        $this->assertSame(40, Player::where('season_point', 12.3)->where('place_1_count', 1)->count());
+        $this->assertDatabaseCount('sync_states', 0);
+        $this->assertSame(2, $group->fresh()->previous_rank);
+        $this->assertSame(1, $group->fresh()->last_synced_rank);
+        $this->get('/')->assertSee('+49.2 pt');
+        Http::assertSentCount(1);
+    }
+
+    public function test_api_scores_restore_zeroed_players_and_public_rankings(): void
+    {
+        Http::preventStrayRequests();
+        foreach (range(1, 40) as $index) {
+            Player::create(['name' => '選手'.$index, 'team_name' => 'チーム', 'season_point' => 0]);
+        }
+        $group = Group::create(['name' => '復旧対象']);
+        $group->players()->sync(Player::orderBy('id')->limit(4)->pluck('id'));
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=stats' => Http::response($this->scorePayload())]);
+
+        $this->post('/update')->assertSessionHas('success');
+
+        $this->assertDatabaseHas('players', ['name' => '選手1', 'season_point' => 12.3, 'place_1_count' => 2, 'place_4_count' => 3]);
+        $this->assertDatabaseHas('players', ['name' => '選手5', 'season_point' => -2.1]);
+        $this->assertDatabaseCount('sync_states', 1);
+        $this->get('/')->assertSee('+49.2 pt');
+        $this->get('/players/ranking')->assertSee('+12.3 pt')->assertSee('-2.1 pt');
+        Http::assertSentCount(1);
+    }
+
+    public function test_invalid_api_responses_preserve_saved_results(): void
+    {
+        Http::preventStrayRequests();
+        Player::create(['name' => '保持対象', 'team_name' => 'チーム', 'season_point' => 55.6, 'place_1_count' => 3]);
+        $payload = $this->scorePayload();
+        $invalidPayloads = [
+            'invalid json',
+            array_replace_recursive($payload, ['season' => ['year' => 2025]]),
+            array_replace_recursive($payload, ['season' => ['phase' => 'final']]),
+            array_replace_recursive($payload, ['stale' => true]),
+            array_replace_recursive($payload, ['mode' => 'unknown']),
+            array_replace_recursive($payload, ['stats' => ['teams' => [0 => ['players' => ['選手1', '選手1', '選手3', '選手4']]]]]),
+            array_replace_recursive($payload, ['stats' => ['teams' => [0 => ['metrics' => [0 => ['values' => [null, 1, 2, 3]]]]]]]),
+            array_replace_recursive($payload, ['stats' => ['teams' => [0 => ['metrics' => [1 => ['values' => [-1, 1, 2, 3]]]]]]]),
+        ];
+        $missingTeam = $payload;
+        array_pop($missingTeam['stats']['teams']);
+        $invalidPayloads[] = $missingTeam;
+        $missingMetric = $payload;
+        array_pop($missingMetric['stats']['teams'][0]['metrics']);
+        $invalidPayloads[] = $missingMetric;
+        $invalidPayloads[] = $payload;
+        foreach ($invalidPayloads as $invalidPayload) {
+            Http::fake(['https://m-league.jp/api/mleague/data?kind=stats' => Http::response($invalidPayload)]);
+
+            $this->artisan('mleague:update')->assertExitCode(1);
+
+            $this->assertDatabaseHas('players', ['name' => '保持対象', 'season_point' => 55.6, 'place_1_count' => 3]);
+            $this->assertDatabaseCount('sync_states', 0);
+        }
     }
 
     public function test_successive_score_updates_record_group_rank_movement(): void
@@ -143,21 +212,10 @@ class LeagueTest extends TestCase
         $second->players()->sync(Player::whereIn('name', ['選手5', '選手6', '選手7', '選手8'])->pluck('id'));
         $category = Category::where('name', '雀廃')->firstOrFail();
         $category->groups()->attach([$first->id, $second->id]);
-        $html = function (string $firstScore, string $secondScore): string {
-            $body = '<h1 class="c-title">Stats 2026-27</h1>';
-            foreach (range(0, 9) as $team) {
-                $names = implode('', array_map(fn ($i) => '<th scope="col">選手'.$i.'</th>', range($team * 4 + 1, $team * 4 + 4)));
-                $points = implode('', array_map(fn ($i) => '<td>'.($i <= 4 ? $firstScore : ($i <= 8 ? $secondScore : '0')).'</td>', range($team * 4 + 1, $team * 4 + 4)));
-                $body .= '<h2 class="p-stats__teamName">チーム</h2><table class="p-stats__table"><tr>'.$names.'</tr><tr><th>ポイント</th>'.$points.'</tr>';
-                foreach (range(1, 4) as $place) {
-                    $body .= '<tr><th>'.$place.'位</th>'.str_repeat('<td>0</td>', 4).'</tr>';
-                }
-                $body .= '</table>';
-            }
-
-            return $body;
-        };
-        Http::fakeSequence()->push($html('10', '0'))->push($html('0', '10'));
+        Http::preventStrayRequests();
+        Http::fake(['https://m-league.jp/api/mleague/data?kind=stats' => Http::sequence()
+            ->push($this->scorePayload(10, 0))
+            ->push($this->scorePayload(0, 10))]);
         $service = app(MLeagueScoreService::class);
         $service->update();
         $this->assertNull($category->groups()->findOrFail($first->id)->pivot->previous_rank);
@@ -193,5 +251,20 @@ class LeagueTest extends TestCase
         $categoryResponse->assertOk()->assertSeeInOrder(['東福岡', '👑横山大将👑', '古川', 'すぎちゃんず', '益田'])->assertDontSee('馬場</h3>', false);
         $this->assertSame(1, substr_count($categoryResponse->getContent(), '最下位との差 0.0 pt'));
         $this->assertTrue($eastFukuoka->groups()->where('groups.name', '👑横山大将👑')->exists());
+    }
+
+    private function scorePayload(float $firstScore = 12.3, float $secondScore = -2.1, array $placements = [2, 1, 0, 3]): array
+    {
+        $teams = [];
+        foreach (range(0, 9) as $team) {
+            $names = array_map(fn (int $index): string => '選手'.$index, range($team * 4 + 1, $team * 4 + 4));
+            $metrics = [['name' => 'ポイント', 'values' => array_fill(0, 4, $team === 0 ? $firstScore : $secondScore)]];
+            foreach (range(1, 4) as $place) {
+                $metrics[] = ['name' => $place.'位', 'values' => array_fill(0, 4, $placements[$place - 1])];
+            }
+            $teams[] = ['team' => 'チーム'.$team, 'players' => $names, 'metrics' => $metrics];
+        }
+
+        return ['mode' => 'api', 'stale' => false, 'season' => ['year' => 2026, 'phase' => 'regular', 'name' => '2026-27レギュラーシーズン'], 'stats' => ['teams' => $teams]];
     }
 }
